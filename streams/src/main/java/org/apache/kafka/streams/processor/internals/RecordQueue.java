@@ -28,6 +28,8 @@ import org.apache.kafka.streams.processor.TimestampExtractor;
 import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * RecordQueue is a FIFO queue of {@link StampedRecord} (ConsumerRecord + timestamp). It also keeps track of the
@@ -45,9 +47,8 @@ public class RecordQueue {
     private final TimestampExtractor timestampExtractor;
     private final RecordDeserializer recordDeserializer;
     private final ArrayDeque<ConsumerRecord<byte[], byte[]>> fifoQueue;
-
-    private StampedRecord headRecord = null;
-    private long partitionTime = UNKNOWN;
+    private StampedRecord headRecord    = null;
+    private long          partitionTime = UNKNOWN;
 
     private final Sensor droppedRecordsSensor;
 
@@ -113,6 +114,26 @@ public class RecordQueue {
 
         return size();
     }
+
+    /**
+     * Get all {@link StampedRecord} from the queue
+     *
+     * @return StampedRecord
+     */
+    public List<StampedRecord> pollAll() {
+
+        final List<StampedRecord> records = new ArrayList<>(size());
+
+        while (headRecord != null) {
+            final StampedRecord tmpRecord = headRecord;
+            records.add(tmpRecord);
+            headRecord = null;
+            updateHead();
+        }
+
+        return records;
+    }
+
 
     /**
      * Get the next {@link StampedRecord} from the queue

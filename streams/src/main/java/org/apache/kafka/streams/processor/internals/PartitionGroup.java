@@ -20,11 +20,13 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.Sensor;
 
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Comparator;
+import java.util.Collections;
 import java.util.Set;
+
 
 /**
  * PartitionGroup is used to buffer all co-partitioned records for processing.
@@ -102,6 +104,33 @@ public class PartitionGroup {
             streamTime = partitionTime;
         }
         queue.setPartitionTime(partitionTime);
+    }
+
+    List<StampedRecord> nextBatch(final RecordInfo info) {
+        List<StampedRecord> records = null;
+        final RecordQueue queue = nonEmptyQueuesByTime.poll();
+        info.queue = queue;
+
+        if (queue != null) {
+
+            totalBuffered -= queue.size();
+
+            if (!queue.isEmpty()) {
+                allBuffered = false;
+            }
+            records = queue.pollAll();
+            final StampedRecord lastRecord = records.get(records.size() - 1);
+            // always update the stream-time to the record's timestamp yet to be processed if it is larger
+            if (lastRecord.timestamp > streamTime) {
+                streamTime = lastRecord.timestamp;
+                recordLatenessSensor.record(0);
+            } else {
+                recordLatenessSensor.record(streamTime - lastRecord.timestamp);
+            }
+
+        }
+
+        return records;
     }
 
     /**
