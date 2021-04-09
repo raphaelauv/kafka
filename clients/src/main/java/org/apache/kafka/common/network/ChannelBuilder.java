@@ -26,7 +26,7 @@ import org.apache.kafka.common.memory.MemoryPool;
 /**
  * A ChannelBuilder interface to build Channel based on configs
  */
-public interface ChannelBuilder extends AutoCloseable, Configurable {
+public interface ChannelBuilder extends AutoCloseable, ListenerReconfigurable {
 
     /**
      * returns a Channel with TransportLayer and Authenticator configured.

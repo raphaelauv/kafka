@@ -17,6 +17,7 @@
 package org.apache.kafka.common.network;
 
 import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.memory.MemoryPool;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.security.auth.KafkaPrincipalBuilder;
@@ -32,6 +33,7 @@ import java.net.InetAddress;
 import java.nio.channels.SelectionKey;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 public class PlaintextChannelBuilder implements ChannelBuilder {
@@ -77,6 +79,26 @@ public class PlaintextChannelBuilder implements ChannelBuilder {
 
     @Override
     public void close() {}
+
+    @Override
+    public Set<String> reconfigurableConfigs() {
+        return null;
+    }
+
+    @Override
+    public void validateReconfiguration(Map<String, ?> configs) throws ConfigException {
+
+    }
+
+    @Override
+    public void reconfigure(Map<String, ?> configs) {
+
+    }
+
+    @Override
+    public ListenerName listenerName() {
+        return null;
+    }
 
     private static class PlaintextAuthenticator implements Authenticator {
         private final PlaintextTransportLayer transportLayer;
