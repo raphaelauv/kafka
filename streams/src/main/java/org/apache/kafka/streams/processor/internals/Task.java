@@ -208,6 +208,10 @@ public interface Task {
         return false;
     }
 
+    default int processBatch(final long wallClockTime) {
+        return 0;
+    }
+
     default boolean commitRequested() {
         return false;
     }

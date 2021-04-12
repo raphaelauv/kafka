@@ -325,6 +325,33 @@ public class StreamTaskTest {
     }
 
     @Test
+    public void shouldProcessBatchInOrder() {
+        task = createStatelessTask(createConfig(false, "0"), StreamsConfig.METRICS_LATEST);
+
+        task.addRecords(partition1, asList(
+            getConsumerRecord(partition1, 10),
+            getConsumerRecord(partition1, 20),
+            getConsumerRecord(partition1, 30)
+        ));
+
+        task.addRecords(partition2, asList(
+            getConsumerRecord(partition2, 25),
+            getConsumerRecord(partition2, 35),
+            getConsumerRecord(partition2, 45)
+        ));
+
+        assertEquals(3, task.processBatch(0L));
+        assertEquals(3, task.numBuffered());
+        assertEquals(1, source1.numReceived); //TODO 3
+        assertEquals(0, source2.numReceived);
+
+        assertEquals(3, task.processBatch(0L));
+        assertEquals(0, task.numBuffered());
+        assertEquals(2, source1.numReceived); //TODO 3
+        assertEquals(0, source2.numReceived); //TODO 3
+    }
+
+    @Test
     public void shouldProcessInOrder() {
         task = createStatelessTask(createConfig(false, "0"), StreamsConfig.METRICS_LATEST);
 

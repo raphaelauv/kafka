@@ -689,7 +689,8 @@ public class StreamThread extends Thread {
              *  6. Otherwise, increment N.
              */
             do {
-                final int processed = taskManager.process(numIterations, time);
+//                final int processed = taskManager.process(numIterations, time);
+                final int processed = taskManager.processBatch(numIterations, time);
                 final long processLatency = advanceNowAndComputeLatency();
                 totalProcessLatency += processLatency;
                 if (processed > 0) {

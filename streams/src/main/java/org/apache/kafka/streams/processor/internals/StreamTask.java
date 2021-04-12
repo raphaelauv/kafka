@@ -48,11 +48,12 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
-import java.util.Base64;
-import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -560,6 +561,65 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
             idleStartTimeMs = RecordQueue.UNKNOWN;
             return false;
         }
+    }
+
+    /**
+     * Process a batch of record.
+     *
+     * @return number of records this method processes in a batch, 0 if it does not process a record.
+     * @throws TaskMigratedException if the task producer got fenced (EOS only)
+     */
+    @SuppressWarnings("unchecked")
+    public int processBatch(final long wallClockTime) {
+        if (!isProcessable(wallClockTime)) {
+            return 0;
+        }
+        // get the next record to process
+        final List<StampedRecord> records = partitionGroup.nextBatch(recordInfo);
+
+        // if there is no record to process, return immediately
+        if (records == null || records.isEmpty()) {
+            return 0;
+        }
+        final StampedRecord lastRecord = records.get(records.size() - 1);
+        try {
+            // process the record by passing to the source node of the topology
+            final ProcessorNode<Object, Object> currNode = (ProcessorNode<Object, Object>) recordInfo.node();
+            final TopicPartition partition = recordInfo.partition();
+
+            log.trace("Start processing batch of records [{}]", records);
+
+            updateProcessorContext(lastRecord, currNode);
+            maybeMeasureLatency(() -> currNode.process(lastRecord.key(), lastRecord.value()), time, processLatencySensor);
+
+            log.trace("Completed processing  [{}] record", records.size());
+
+            // update the consumed offset map after processing is done
+            consumedOffsets.put(partition, lastRecord.offset());
+            commitNeeded = true;
+
+            // we can then resume the consumption on this partition
+            mainConsumer.resume(singleton(partition));
+
+        } catch (final StreamsException e) {
+            throw e;
+        } catch (final RuntimeException e) {
+            final String stackTrace = getStacktraceString(e);
+            throw new StreamsException(String.format("Exception caught in process. taskId=%s, " +
+                                                     "processor=%s, topic=%s, partition=%d, offset=%d, stacktrace=%s",
+              id(),
+              processorContext.currentNode().name(),
+              lastRecord.topic(),
+              lastRecord.partition(),
+              lastRecord.offset(),
+              stackTrace
+            ), e);
+        } finally {
+            processorContext.setCurrentNode(null);
+        }
+
+        return records.size();
+
     }
 
     /**
